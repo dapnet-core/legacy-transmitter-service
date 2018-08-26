@@ -16,6 +16,7 @@ package org.dapnet.backwardcompatibilityservice;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.dapnet.backwardcompatibilityservice.transmission.RabbitMQManager;
 import org.dapnet.backwardcompatibilityservice.transmission.TransmissionManager;
 import org.dapnet.backwardcompatibilityservice.transmission.TransmitterServer;
 
@@ -34,6 +35,7 @@ public class BackwardCompatibilityService {
 	private static volatile BackwardCompatibilityService backwardcompatibilityservice;
 	private volatile TransmissionManager transmissionManager;
 	private volatile TransmitterServer transmitterServer;
+	private volatile RabbitMQManager rabbitmqmanager;
 
 	static {
 		String ver = BackwardCompatibilityService.class.getPackage().getImplementationVersion();
@@ -65,7 +67,13 @@ public class BackwardCompatibilityService {
 			transmitterServer = new TransmitterServer(transmissionManager.getTransmitterManager());
 			transmitterServer.start();
 
+            logger.info("Starting RabbitQM Manager");
+            rabbitmqmanager = new RabbitMQManager("dapnet.calls");
+            rabbitmqmanager.addRabbitMQQueue("db0wa");
+			rabbitmqmanager.addRabbitMQQueue("db0kwe");
+
 			logger.info("backward-compatibility-service started");
+
 		} catch (CoreStartupException e) {
 			logger.fatal("Failed to start backward-compatibility-service: {}", e.getMessage());
 			System.exit(1);
@@ -123,6 +131,7 @@ public class BackwardCompatibilityService {
 
 		backwardcompatibilityservice = new BackwardCompatibilityService();
 		backwardcompatibilityservice.start(enforceStartup);
+
 	}
 
 	private static void setJavaLogLevelToWarn() {
