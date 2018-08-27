@@ -51,7 +51,8 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
 	private ChannelPromise handshakePromise;
 	private SyncTimeHandler syncHandler;
 
-	private static final String BOOTSTRAP_URL = "http://dapnetdc2.db0sda.ampr.org/transmitters/bootstrap";
+	private static final String BOOTSTRAP_URL = "http://dapnetdc2.db0sda.ampr.org/transmitters/_bootstrap";
+	private static final String HEARTBEAT_URL = "http://dapnetdc2.db0sda.ampr.org/transmitters/_heartbeat";
 
 	public ServerHandler(TransmitterManager manager) {
 		this.manager = manager;
@@ -172,6 +173,35 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
 				logger.warn("Invalid ack received: {}", msg);
 			}
 		}
+
+		Transmitter t = client.getTransmitter();
+		Client BootstrapPOSTClient = Client.create();
+		WebResource webResource = BootstrapPOSTClient.resource(HEARTBEAT_URL);
+		JsonObjectBuilder POSTRequest = Json.createObjectBuilder();
+		POSTRequest.add("callsign", t.getName());
+		POSTRequest.add("auth_key", t.getAuthKey());
+		POSTRequest.add("ntp_synced", true);
+
+		String POSTJSONString = POSTRequest.toString();
+		ClientResponse POSTrepsonse = webResource.type("application/json").post(ClientResponse.class,POSTJSONString);
+		if (POSTrepsonse.getType() != MediaType.APPLICATION_JSON_TYPE) {
+			logger.error("Invalid Media Type from Heartbeat Service: " + POSTrepsonse.getType().toString() +
+					"while trying to heartbeat transmitter " + t.getName());
+			return;
+		}
+
+		String POSTresponseJOSN = POSTrepsonse.getEntity(String.class);
+
+		JsonReader jsonReader = Json.createReader(new StringReader(POSTresponseJOSN));
+		JsonObject POSTJSONresponseObject = jsonReader.readObject();
+		jsonReader.close();
+
+		if (POSTrepsonse.getStatus() != 200) {
+			logger.error("Heartbeat Service returned non expected status code: " +
+					Integer.toString(POSTrepsonse.getStatus()) +
+					"instead of 200 while trying to heartbeat transmitter " + t.getName());
+		}
+
 	}
 
 	private void handleAuth(ChannelHandlerContext ctx, String msg) throws Exception {
