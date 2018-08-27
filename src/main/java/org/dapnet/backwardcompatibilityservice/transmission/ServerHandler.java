@@ -192,16 +192,11 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
 
 		String POSTresponseJOSN = POSTrepsonse.getEntity(String.class);
 
-		JsonReader jsonReader = Json.createReader(new StringReader(POSTresponseJOSN));
-		JsonObject POSTJSONresponseObject = jsonReader.readObject();
-		jsonReader.close();
-
 		if (POSTrepsonse.getStatus() != 200) {
 			logger.error("Heartbeat Service returned non expected status code: " +
 					Integer.toString(POSTrepsonse.getStatus()) +
 					"instead of 200 while trying to heartbeat transmitter " + t.getName());
 		}
-
 	}
 
 	private void handleAuth(ChannelHandlerContext ctx, String msg) throws Exception {

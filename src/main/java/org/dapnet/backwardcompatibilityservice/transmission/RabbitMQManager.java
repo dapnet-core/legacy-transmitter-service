@@ -2,7 +2,11 @@ package org.dapnet.backwardcompatibilityservice.transmission;
 
 import com.rabbitmq.client.*;
 
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,6 +57,32 @@ public class RabbitMQManager {
                                        AMQP.BasicProperties properties, byte[] body) throws IOException {
                 String message = new String(body, "UTF-8");
                 System.out.println(" [x] Received '" + envelope.getRoutingKey() + "':'" + message + "'");
+
+                String Transmittername = envelope.getRoutingKey();
+                JsonReader jsonReader = Json.createReader(new StringReader(message));
+                JsonObject MessageObject = jsonReader.readObject();
+                jsonReader.close();
+
+                if (MessageObject.getString("protocol") != "pocsag") {
+                    System.out.println("Not protocol pocsag in RabbitMQ Message");
+                    return;
+                }
+                // Generate Message and queue it (don't know how yet)
+                /*
+                {
+"id": "016 c25fd -70 e0 -56 fe -9 d1a -56 e80fa20b82 ",
+" protocol ": " pocsag ",
+" priority ": 3,
+" expires ": "2018 -07 -03 T08 :00:52.786458 Z",
+" message ": {
+" ric ": 12342 , (max 21 Bits )
+" type ": " alphanum ", | " numeric "
+" speed ": 1200 ,
+" function ": 0 to 3,
+" data ": " Lorem ipsum dolor sit amet "
+}
+}
+                 */
             }
         };
         this.channel.basicConsume(NewQueueName, true, consumer);
