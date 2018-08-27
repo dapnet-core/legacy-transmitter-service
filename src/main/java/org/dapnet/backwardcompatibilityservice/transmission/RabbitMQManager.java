@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Map;
+import org.dapnet.backwardcompatibilityservice.transmission.PagerMessage;
 
 
 public class RabbitMQManager {
@@ -19,8 +20,9 @@ public class RabbitMQManager {
     private Channel channel;
     private Map<String, String> QueueMap = new HashMap<String, String>();
     private String ExchangeName;
+    private TransmitterManager transmitterManager;
 
-    public RabbitMQManager (String ExchangeName) throws Exception {
+    public RabbitMQManager (String ExchangeName, TransmitterManager transmitterManager) throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setUsername(RABBITMQUSER);
         factory.setPassword(RABBITMQPASSWORD);
@@ -31,7 +33,9 @@ public class RabbitMQManager {
         this.channel = this.connection.createChannel();
         AMQP.Exchange.DeclareOk ExchangeResponse = this.channel.exchangeDeclarePassive(ExchangeName);
         this.ExchangeName = ExchangeName;
+        this.transmitterManager = transmitterManager;
         System.out.println(ExchangeResponse.toString());
+
     }
 
     public boolean addRabbitMQQueue (String TransmitterName) throws Exception {
@@ -57,32 +61,47 @@ public class RabbitMQManager {
                                        AMQP.BasicProperties properties, byte[] body) throws IOException {
                 String message = new String(body, "UTF-8");
                 System.out.println(" [x] Received '" + envelope.getRoutingKey() + "':'" + message + "'");
+                /*
+                {
+                    "priority": 3,
+                    "message": {
+                        "function": 0,
+                        "speed": 1200,
+                        "type": "numeric",
+                        "ric": 2504,
+                        "data": "205700   270818"
+                    },
+                    "expires": "2018-08-28T03:57:00.007608Z",
+                    "protocol": "pocsag",
+                    "id": "b0a77459-b70b-408d-87f9-173831acbbe7"
+                  }
+                 */
 
                 String Transmittername = envelope.getRoutingKey();
                 JsonReader jsonReader = Json.createReader(new StringReader(message));
                 JsonObject MessageObject = jsonReader.readObject();
                 jsonReader.close();
 
-                if (MessageObject.getString("protocol") != "pocsag") {
-                    System.out.println("Not protocol pocsag in RabbitMQ Message");
+                if (!MessageObject.getString("protocol").equals("pocsag")) {
+                    System.out.println("Not protocol ->pocsag<- in RabbitMQ Message");
                     return;
                 }
-                // Generate Message and queue it (don't know how yet)
-                /*
-                {
-"id": "016 c25fd -70 e0 -56 fe -9 d1a -56 e80fa20b82 ",
-" protocol ": " pocsag ",
-" priority ": 3,
-" expires ": "2018 -07 -03 T08 :00:52.786458 Z",
-" message ": {
-" ric ": 12342 , (max 21 Bits )
-" type ": " alphanum ", | " numeric "
-" speed ": 1200 ,
-" function ": 0 to 3,
-" data ": " Lorem ipsum dolor sit amet "
-}
-}
-                 */
+
+                // Generate Message and queue it
+                if (MessageObject.getJsonObject("message").getInt("function") == 3) {
+                    PagerMessage pagerMessage = new PagerMessage(MessageObject.getJsonObject("message").getString("data"),
+                        MessageObject.getJsonObject("message").getInt("ric"),
+                        PagerMessage.MessagePriority.CALL,
+                        PagerMessage.FunctionalBits.ALPHANUM);
+                    transmitterManager.sendMessage(pagerMessage,TransmitterName);
+
+                } else if (MessageObject.getJsonObject("message").getInt("function") == 0) {
+                    PagerMessage pagerMessage = new PagerMessage(MessageObject.getJsonObject("message").getString("data"),
+                            MessageObject.getJsonObject("message").getInt("ric"),
+                            PagerMessage.MessagePriority.CALL,
+                            PagerMessage.FunctionalBits.NUMERIC);
+                    transmitterManager.sendMessage(pagerMessage,TransmitterName);
+                }
             }
         };
         this.channel.basicConsume(NewQueueName, true, consumer);

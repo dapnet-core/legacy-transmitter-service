@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.rwth-aachen.afu.dapnet</groupId>
 	<artifactId>backwardcompatibilityservice</artifactId>
-	<version>0.0.0.2</version>
+	<version>0.0.1.0</version>
 	<name>Backward Compatibility Service</name>
 	<organization>
 		<name>Amateurfunkgruppe der RWTH Aachen</name>

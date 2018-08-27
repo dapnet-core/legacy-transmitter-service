@@ -25,7 +25,7 @@ public class TransmitterManager {
     public TransmitterManager () {
         logger.info("Starting RabbitQM Manager");
         try {
-            rabbitmqmanager = new RabbitMQManager("dapnet.calls");
+            rabbitmqmanager = new RabbitMQManager("dapnet.calls", this);
         } catch (Exception e) {
         }
     }

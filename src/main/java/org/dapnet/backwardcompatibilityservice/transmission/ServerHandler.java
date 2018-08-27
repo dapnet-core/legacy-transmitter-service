@@ -26,9 +26,9 @@ import io.netty.util.concurrent.ScheduledFuture;
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
-
 import javax.json.*;
 import javax.ws.rs.core.MediaType;
+
 
 class ServerHandler extends SimpleChannelInboundHandler<String> {
 
@@ -181,21 +181,17 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
 		POSTRequest.add("callsign", t.getName());
 		POSTRequest.add("auth_key", t.getAuthKey());
 		POSTRequest.add("ntp_synced", true);
+        JsonObject POSTJSONObject = POSTRequest.build();
 
-		String POSTJSONString = POSTRequest.toString();
+		String POSTJSONString = POSTJSONObject.toString();
+        System.out.println(POSTJSONString);
+
 		ClientResponse POSTrepsonse = webResource.type("application/json").post(ClientResponse.class,POSTJSONString);
-		if (POSTrepsonse.getType() != MediaType.APPLICATION_JSON_TYPE) {
-			logger.error("Invalid Media Type from Heartbeat Service: " + POSTrepsonse.getType().toString() +
-					"while trying to heartbeat transmitter " + t.getName());
-			return;
-		}
-
-		String POSTresponseJOSN = POSTrepsonse.getEntity(String.class);
 
 		if (POSTrepsonse.getStatus() != 200) {
 			logger.error("Heartbeat Service returned non expected status code: " +
 					Integer.toString(POSTrepsonse.getStatus()) +
-					"instead of 200 while trying to heartbeat transmitter " + t.getName());
+					" instead of 200 while trying to heartbeat transmitter " + t.getName());
 		}
 	}
 
@@ -223,17 +219,18 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
         POSTRequest_software.add("name", type);
         POSTRequest_software.add("version", version);
         POSTRequest.add("software", POSTRequest_software);
+        JsonObject POSTJSONObject = POSTRequest.build();
 
-        String POSTJSONString = POSTRequest.toString();
-        ClientResponse POSTrepsonse = webResource.type("application/json").post(ClientResponse.class,POSTJSONString);
-        if (POSTrepsonse.getType() != MediaType.APPLICATION_JSON_TYPE) {
-            logger.error("Invalid Media Type from Bootstrap Service: " + POSTrepsonse.getType().toString() +
-                    "while trying to register transmitter " + name);
-            ctx.writeAndFlush("07 Invalid Media Type from Bootstrap Service, sorry not your fault.").addListener(ChannelFutureListener.CLOSE);
-            return;
-        }
+        String POSTRequestString = POSTJSONObject.toString();
+        System.out.println(POSTRequestString);
+
+        ClientResponse POSTrepsonse = webResource.accept(MediaType.APPLICATION_JSON_TYPE).
+                type(MediaType.APPLICATION_JSON_TYPE).
+                post(ClientResponse.class,POSTRequestString);
 
         String POSTresponseJOSN = POSTrepsonse.getEntity(String.class);
+
+        System.out.println(POSTrepsonse.toString());
 
         JsonReader jsonReader = Json.createReader(new StringReader(POSTresponseJOSN));
         JsonObject POSTJSONresponseObject = jsonReader.readObject();
@@ -245,7 +242,8 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
                 logger.error("Your transmitter is not allowed to connect due to: " +
                         POSTJSONresponseObject.getString("error") +
                         "while trying to register transmitter " + name);
-                ctx.writeAndFlush("07 Invalid Media Type from Bootstrap Service, sorry not your fault.").addListener(ChannelFutureListener.CLOSE);
+                ctx.writeAndFlush("07Your transmitter is not allowed to connect due to: " +
+                        POSTJSONresponseObject.getString("error")).addListener(ChannelFutureListener.CLOSE);
                 return;
             }
 
@@ -260,7 +258,6 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
 
             case 200: case 201: {
                 // Created
-                JsonArray Timeslotsarray = POSTJSONresponseObject.getJsonArray("tileslots");
                 // Build Transmitter
                 Transmitter t = new Transmitter();
                 t.setName(name);
@@ -270,13 +267,31 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
                 t.setDeviceVersion(version);
                 t.setStatus(Status.ONLINE);
 
-                // Convert JSON boolean array to
+                JsonArray Timeslotsarray = POSTJSONresponseObject.getJsonArray("timeslots");
+                // Convert JSON boolean array to String
                 String TimeslotsString = "";
-                for (int i = 0; i < Timeslotsarray.size(); i++) {
-                    if (Timeslotsarray.getBoolean(i)) {
-                        TimeslotsString = TimeslotsString + Integer.toString(i).toUpperCase();
+                if (!Timeslotsarray.isEmpty()) {
+                    for (int i = 0; i < Timeslotsarray.size(); i++) {
+                        if (Timeslotsarray.getBoolean(i)) {
+                            // Dirty but works
+                            if (i > 9) {
+                                switch (i) {
+                                    case 10: TimeslotsString = TimeslotsString + "A"; break;
+                                    case 11: TimeslotsString = TimeslotsString + "B"; break;
+                                    case 12: TimeslotsString = TimeslotsString + "C"; break;
+                                    case 13: TimeslotsString = TimeslotsString + "D"; break;
+                                    case 14: TimeslotsString = TimeslotsString + "C"; break;
+                                    case 15: TimeslotsString = TimeslotsString + "E"; break;
+                                    case 16: TimeslotsString = TimeslotsString + "F"; break;
+                                }
+                            }
+                            else {
+                                TimeslotsString = TimeslotsString + Integer.toString(i).toUpperCase();
+                            }
+                        }
                     }
                 }
+                System.out.println("Timeslots received from Bootstrap: " + TimeslotsString);
                 t.setTimeSlot(TimeslotsString);
 
                 // Close existing connection if necessary. This is a no-op if the
