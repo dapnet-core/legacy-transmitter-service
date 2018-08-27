@@ -71,14 +71,6 @@ public class State implements Serializable {
 		// instead of strings
 		Call.setState(this);
 		CallSign.setState(this);
-		Transmitter.setState(this);
-	}
-
-	public static State readFromFile() throws Exception {
-		try (InputStreamReader reader = new InputStreamReader(
-				new FileInputStream(Settings.getModelSettings().getStateFile()), "UTF-8")) {
-			return gson.fromJson(reader, State.class);
-		}
 	}
 
 	public void writeToFile() {

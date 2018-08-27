@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.rwth-aachen.afu.dapnet</groupId>
 	<artifactId>backwardcompatibilityservice</artifactId>
-	<version>0.0.0.1</version>
+	<version>0.0.0.2</version>
 	<name>Backward Compatibility Service</name>
 	<organization>
 		<name>Amateurfunkgruppe der RWTH Aachen</name>
@@ -17,6 +17,23 @@
 		<maven.compiler.optimise>true</maven.compiler.optimise>
 	</properties>
 	<dependencies>
+		<dependency>
+			<groupId>org.glassfish</groupId>
+			<artifactId>javax.json</artifactId>
+			<version>1.1</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/javax.json/javax.json-api -->
+		<dependency>
+			<groupId>javax.json</groupId>
+			<artifactId>javax.json-api</artifactId>
+			<version>1.1.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/com.sun.jersey/jersey-client -->
+		<dependency>
+			<groupId>com.sun.jersey</groupId>
+			<artifactId>jersey-client</artifactId>
+			<version>1.9.1</version>
+		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.rabbitmq/amqp-client -->
 		<dependency>
 			<groupId>com.rabbitmq</groupId>

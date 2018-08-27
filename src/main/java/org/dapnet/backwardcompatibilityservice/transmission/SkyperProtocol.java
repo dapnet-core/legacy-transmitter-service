@@ -36,9 +36,6 @@ public class SkyperProtocol implements PagerProtocol {
 			.getPagingProtocolSettings();
 	private static final Logger logger = LogManager.getLogger();
 	private static final Pattern NUMERIC_PATTERN = Pattern.compile("[-Uu\\d\\(\\) ]+");
-	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("HHmmss   ddMMyy");
-	private static final DateTimeFormatter DATE_FORMATTER_SWISSPHONE = DateTimeFormatter
-			.ofPattern("'XTIME='HHmmddMMyy");
 	private static final Charset PAGER_CHARSET = new DE_ASCII7();
 
 	@Override
@@ -85,20 +82,6 @@ public class SkyperProtocol implements PagerProtocol {
 			logger.error("Failed to create messages from call.", ex);
 			return null;
 		}
-	}
-
-
-	@Override
-	public PagerMessage createMessageFromTime(LocalDateTime time) {
-		return new PagerMessage(DATE_FORMATTER.format(time), 2504, PagerMessage.MessagePriority.TIME,
-				PagerMessage.FunctionalBits.NUMERIC);
-	}
-
-	@Override
-	public PagerMessage createMessageFromTimeSwissphone(LocalDateTime time) {
-		String s = DATE_FORMATTER_SWISSPHONE.format(time);
-		String s2 = s + s;
-		return new PagerMessage(s2, 165856, PagerMessage.MessagePriority.TIME, PagerMessage.FunctionalBits.ALPHANUM);
 	}
 
 

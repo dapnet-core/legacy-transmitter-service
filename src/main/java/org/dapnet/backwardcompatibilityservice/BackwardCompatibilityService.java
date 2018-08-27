@@ -35,7 +35,7 @@ public class BackwardCompatibilityService {
 	private static volatile BackwardCompatibilityService backwardcompatibilityservice;
 	private volatile TransmissionManager transmissionManager;
 	private volatile TransmitterServer transmitterServer;
-	private volatile RabbitMQManager rabbitmqmanager;
+
 
 	static {
 		String ver = BackwardCompatibilityService.class.getPackage().getImplementationVersion();
@@ -67,10 +67,6 @@ public class BackwardCompatibilityService {
 			transmitterServer = new TransmitterServer(transmissionManager.getTransmitterManager());
 			transmitterServer.start();
 
-            logger.info("Starting RabbitQM Manager");
-            rabbitmqmanager = new RabbitMQManager("dapnet.calls");
-            rabbitmqmanager.addRabbitMQQueue("db0wa");
-			rabbitmqmanager.addRabbitMQQueue("db0kwe");
 
 			logger.info("backward-compatibility-service started");
 

@@ -16,12 +16,8 @@ package org.dapnet.backwardcompatibilityservice.transmission;
 
 import org.dapnet.backwardcompatibilityservice.model.Call;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PagerProtocol {
-	PagerMessage createMessageFromTime(LocalDateTime time);
-
-	PagerMessage createMessageFromTimeSwissphone(LocalDateTime time);
 	List<PagerMessage> createMessagesFromCall(Call call);
 }

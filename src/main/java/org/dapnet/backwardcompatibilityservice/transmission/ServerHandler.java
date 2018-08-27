@@ -1,5 +1,6 @@
 package org.dapnet.backwardcompatibilityservice.transmission;
 
+import java.io.StringReader;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -12,13 +13,22 @@ import org.dapnet.backwardcompatibilityservice.model.Transmitter;
 import org.dapnet.backwardcompatibilityservice.model.Transmitter.Status;
 import org.dapnet.backwardcompatibilityservice.transmission.TransmissionSettings.PagingProtocolSettings;
 import org.dapnet.backwardcompatibilityservice.transmission.TransmitterClient.AckType;
+import org.glassfish.jersey.message.internal.MediaTypes;
 import org.jgroups.stack.IpAddress;
+import org.glassfish.json.JsonProviderImpl;
 
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.concurrent.ScheduledFuture;
+
+import com.sun.jersey.api.client.Client;
+import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.api.client.WebResource;
+
+import javax.json.*;
+import javax.ws.rs.core.MediaType;
 
 class ServerHandler extends SimpleChannelInboundHandler<String> {
 
@@ -40,6 +50,8 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
 	private TransmitterClient client;
 	private ChannelPromise handshakePromise;
 	private SyncTimeHandler syncHandler;
+
+	private static final String BOOTSTRAP_URL = "http://dapnetdc2.db0sda.ampr.org/transmitters/bootstrap";
 
 	public ServerHandler(TransmitterManager manager) {
 		this.manager = manager;
@@ -166,49 +178,107 @@ class ServerHandler extends SimpleChannelInboundHandler<String> {
 		Matcher authMatcher = AUTH_PATTERN.matcher(msg);
 		if (!authMatcher.matches()) {
                         logger.error("Invalid welcome message format: " + msg);
-                        ctx.writeAndFlush("07 Invalid welcom message format").addListener(ChannelFutureListener.CLOSE);
+                        ctx.writeAndFlush("07 Invalid welcome message format").addListener(ChannelFutureListener.CLOSE);
                         return;
-//			throw new TransmitterException("Invalid welcome message format: " + msg);
 		}
 
 		String type = authMatcher.group(1);
 		String version = authMatcher.group(2);
 		String name = authMatcher.group(3);
-		String key = authMatcher.group(4);
+		String auth_key = authMatcher.group(4);
 
-		Transmitter t = manager.getTransmitter(name);
-		if (t == null) {
-                        logger.error("The transmitter name is not registered: " + name);
-                        ctx.writeAndFlush("07 Transmitter not registered").addListener(ChannelFutureListener.CLOSE);
-                        return;
-//			throw new TransmitterException("The transmitter name is not registered: " + name);
-		} else if (t.getStatus() == Status.DISABLED) {
-			logger.error("Transmitter is disabled and not allowed to connect: " + name);
-			ctx.writeAndFlush("07 Transmitter disabled").addListener(ChannelFutureListener.CLOSE);
-			return;
-		}
+		// Open connection to Transmitter Bootstrap service and check credentials and get timeslots
 
-		// Test authentication key
-		if (!t.getAuthKey().equals(key)) {
-			logger.error("Wrong authentication key supplied for transmitter: " + name);
-			ctx.writeAndFlush("07 Invalid credentials").addListener(ChannelFutureListener.CLOSE);
-			return;
-		}
+		Client BootstrapPOSTClient = Client.create();
+		WebResource webResource = BootstrapPOSTClient.resource(BOOTSTRAP_URL);
+        JsonObjectBuilder POSTRequest = Json.createObjectBuilder();
+        POSTRequest.add("callsign", name);
+        POSTRequest.add("auth_key", auth_key);
+        JsonObjectBuilder POSTRequest_software = Json.createObjectBuilder();
+        POSTRequest_software.add("name", type);
+        POSTRequest_software.add("version", version);
+        POSTRequest.add("software", POSTRequest_software);
 
-		// Close existing connection if necessary. This is a no-op if the
-		// transmitter is not connected.
-		manager.disconnectFrom(t);
+        String POSTJSONString = POSTRequest.toString();
+        ClientResponse POSTrepsonse = webResource.type("application/json").post(ClientResponse.class,POSTJSONString);
+        if (POSTrepsonse.getType() != MediaType.APPLICATION_JSON_TYPE) {
+            logger.error("Invalid Media Type from Bootstrap Service: " + POSTrepsonse.getType().toString() +
+                    "while trying to register transmitter " + name);
+            ctx.writeAndFlush("07 Invalid Media Type from Bootstrap Service, sorry not your fault.").addListener(ChannelFutureListener.CLOSE);
+            return;
+        }
 
-		t.setDeviceType(type);
-		t.setDeviceVersion(version);
-		t.setAddress(new IpAddress((InetSocketAddress) ctx.channel().remoteAddress()));
+        String POSTresponseJOSN = POSTrepsonse.getEntity(String.class);
 
-		client.setTransmitter(t);
+        JsonReader jsonReader = Json.createReader(new StringReader(POSTresponseJOSN));
+        JsonObject POSTJSONresponseObject = jsonReader.readObject();
+        jsonReader.close();
 
-		// Begin the sync time procedure
-		syncHandler.handleMessage(ctx, msg);
+        switch (POSTrepsonse.getStatus()) {
+            case 432 : {
+                // Locked
+                logger.error("Your transmitter is not allowed to connect due to: " +
+                        POSTJSONresponseObject.getString("error") +
+                        "while trying to register transmitter " + name);
+                ctx.writeAndFlush("07 Invalid Media Type from Bootstrap Service, sorry not your fault.").addListener(ChannelFutureListener.CLOSE);
+                return;
+            }
 
-		state = ConnectionState.SYNC_TIME;
+            case 401: case 403: {
+                // Unauthorized or Forbidden
+                logger.error("Your transmitter is not allowed to connect due to: " +
+                        POSTJSONresponseObject.getString("error") +
+                        "while trying to register transmitter " + name);
+                ctx.writeAndFlush("07 Your transmitter is not allowed to connect. Check callsign and auth_key").addListener(ChannelFutureListener.CLOSE);
+                return;
+            }
+
+            case 200: case 201: {
+                // Created
+                JsonArray Timeslotsarray = POSTJSONresponseObject.getJsonArray("tileslots");
+                // Build Transmitter
+                Transmitter t = new Transmitter();
+                t.setName(name);
+                t.setAuthKey(auth_key);
+                t.setNodeName("db0sda-dc2");
+                t.setDeviceType(type);
+                t.setDeviceVersion(version);
+                t.setStatus(Status.ONLINE);
+
+                // Convert JSON boolean array to
+                String TimeslotsString = "";
+                for (int i = 0; i < Timeslotsarray.size(); i++) {
+                    if (Timeslotsarray.getBoolean(i)) {
+                        TimeslotsString = TimeslotsString + Integer.toString(i).toUpperCase();
+                    }
+                }
+                t.setTimeSlot(TimeslotsString);
+
+                // Close existing connection if necessary. This is a no-op if the
+                // transmitter is not connected.
+                manager.disconnectFrom(t);
+
+                t.setDeviceType(type);
+                t.setDeviceVersion(version);
+                t.setAddress(new IpAddress((InetSocketAddress) ctx.channel().remoteAddress()));
+
+                client.setTransmitter(t);
+
+                // Begin the sync time procedure
+                syncHandler.handleMessage(ctx, msg);
+
+                state = ConnectionState.SYNC_TIME;
+                return;
+            }
+            default: {
+                logger.error("Error communicating with Bootstrap Service due to : " +
+                        POSTJSONresponseObject.getString("error") +
+                        "while trying to register transmitter " + name);
+                ctx.writeAndFlush("07 Error communicating with Bootstrap Service, sorry not your fault.").addListener(ChannelFutureListener.CLOSE);
+                return;
+            }
+
+        }
 	}
 
 	private void handleSyncTime(ChannelHandlerContext ctx, String message) throws Exception {

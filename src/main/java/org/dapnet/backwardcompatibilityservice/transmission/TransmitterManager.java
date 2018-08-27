@@ -4,11 +4,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.dapnet.backwardcompatibilityservice.model.Transmitter;
 import org.dapnet.backwardcompatibilityservice.model.Transmitter.Status;
+import org.dapnet.backwardcompatibilityservice.transmission.RabbitMQManager;
 
-import java.time.Instant;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
 
 /**
  * This class manages connected transmitters.
@@ -19,7 +20,15 @@ public class TransmitterManager {
 	private static final Logger logger = LogManager.getLogger();
 	private final ConcurrentMap<String, TransmitterClient> connectedClients = new ConcurrentHashMap<>();
 	private volatile TransmitterManagerListener listener;
+    private volatile RabbitMQManager rabbitmqmanager;
 
+    public TransmitterManager () {
+        logger.info("Starting RabbitQM Manager");
+        try {
+            rabbitmqmanager = new RabbitMQManager("dapnet.calls");
+        } catch (Exception e) {
+        }
+    }
 	/**
 	 * Gets a transmitter by its name.
 	 * 
@@ -79,18 +88,6 @@ public class TransmitterManager {
 		}
 	}
 
-	/**
-	 * Sends a message containing the callsign to each connected transmitter.
-	 */
-	public void sendCallSigns() {
-		connectedClients.values().forEach(tx -> {
-			try {
-				tx.sendCallSignMessage();
-			} catch (Throwable cause) {
-				logger.error("Failed to send callsign to transmitter.", cause);
-			}
-		});
-	}
 
 	/**
 	 * Callback to handle connect events.
@@ -107,13 +104,16 @@ public class TransmitterManager {
 
 		t.setStatus(Status.ONLINE);
 
-		Instant lastConnected = Instant.now();
-		t.setLastConnected(lastConnected);
-		t.setConnectedSince(lastConnected);
-
 		connectedClients.put(t.getName().toLowerCase(), client);
 
 		notifyStatusChanged(listener, t);
+
+		// Add RabbitMQ queue
+        try {
+            rabbitmqmanager.addRabbitMQQueue(t.getName());
+        }
+        catch (Exception e) {
+        }
 	}
 
 	/**
@@ -130,8 +130,6 @@ public class TransmitterManager {
 		if (t.getStatus() != Status.ERROR) {
 			t.setStatus(Status.OFFLINE);
 		}
-
-		t.setConnectedSince(null);
 
 		connectedClients.remove(t.getName().toLowerCase());
 

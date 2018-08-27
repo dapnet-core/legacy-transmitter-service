@@ -24,27 +24,6 @@ public class TransmissionManager {
 	private final PagerProtocol protocol = new SkyperProtocol();
 	private final TransmitterManager transmitterManager = new TransmitterManager();
 
-	public void handleTime(LocalDateTime time) {
-		// Skyper Time
-		try {
-			PagerMessage message = protocol.createMessageFromTime(time);
-			transmitterManager.sendMessage(message);
-
-			logger.info("Time sent to transmitters in Skyper format.");
-		} catch (Exception e) {
-			logger.error("Failed to send Time in Skyper format.", e);
-		}
-		// Swissphone Time
-		try {
-			PagerMessage message = protocol.createMessageFromTimeSwissphone(time);
-			transmitterManager.sendMessage(message);
-
-			logger.info("Time sent to transmitters in Swissphone format.");
-		} catch (Exception e) {
-			logger.error("Failed to send Time in Swissphone format.", e);
-		}
-
-	}
 
 /*	public void handleNews(News news) {
 		try {
