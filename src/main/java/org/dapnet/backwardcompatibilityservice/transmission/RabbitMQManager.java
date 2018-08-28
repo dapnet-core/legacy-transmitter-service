@@ -88,20 +88,11 @@ public class RabbitMQManager {
                 }
 
                 // Generate Message and queue it
-                if (MessageObject.getJsonObject("message").getInt("function") == 3) {
-                    PagerMessage pagerMessage = new PagerMessage(MessageObject.getJsonObject("message").getString("data"),
-                        MessageObject.getJsonObject("message").getInt("ric"),
-                        PagerMessage.MessagePriority.CALL,
-                        PagerMessage.FunctionalBits.ALPHANUM);
-                    transmitterManager.sendMessage(pagerMessage,TransmitterName);
-
-                } else if (MessageObject.getJsonObject("message").getInt("function") == 0) {
-                    PagerMessage pagerMessage = new PagerMessage(MessageObject.getJsonObject("message").getString("data"),
-                            MessageObject.getJsonObject("message").getInt("ric"),
-                            PagerMessage.MessagePriority.CALL,
-                            PagerMessage.FunctionalBits.NUMERIC);
-                    transmitterManager.sendMessage(pagerMessage,TransmitterName);
-                }
+                PagerMessage pagerMessage = new PagerMessage(MessageObject.getJsonObject("message").getString("data"),
+                    MessageObject.getJsonObject("message").getInt("ric"),
+                    PagerMessage.MessagePriority.CALL,
+                    PagerMessage.FunctionalBits.values()[MessageObject.getJsonObject("message").getInt("function")]);
+                transmitterManager.sendMessage(pagerMessage, TransmitterName);
             }
         };
         this.channel.basicConsume(NewQueueName, true, consumer);

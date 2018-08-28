@@ -130,6 +130,12 @@ public class TransmitterManager {
 		if (t.getStatus() != Status.ERROR) {
 			t.setStatus(Status.OFFLINE);
 		}
+		// Pause RabbitMQ queue
+		try {
+			rabbitmqmanager.pauseRabbitMQQueue(t.getName());
+		}
+		catch (Exception e) {
+		}
 
 		connectedClients.remove(t.getName().toLowerCase());
 
