@@ -14,26 +14,17 @@
 
 package de.rwth_aachen.afu.dapnet.legacy.transmitter_service.model;
 
-import org.jgroups.stack.IpAddress;
+import java.io.Serializable;
+import java.net.InetSocketAddress;
+import java.util.Collection;
 
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.model.validator.TimeSlot;
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.model.validator.ValidName;
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMessage;
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMessage.FunctionalBits;
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMessage.MessagePriority;
-
-import javax.validation.constraints.*;
-import java.io.Serializable;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public class Transmitter implements Serializable, Searchable {
 
 	private static final long serialVersionUID = -8142160974834002456L;
-	private static volatile State state;
 
 	@NotNull
 	@Size(min = 3, max = 20)
@@ -45,7 +36,7 @@ public class Transmitter implements Serializable, Searchable {
 
 	private String nodeName;
 
-	private IpAddress address;
+	private InetSocketAddress address;
 
 	@NotNull
 	@TimeSlot()
@@ -91,11 +82,11 @@ public class Transmitter implements Serializable, Searchable {
 		this.nodeName = nodeName;
 	}
 
-	public IpAddress getAddress() {
+	public InetSocketAddress getAddress() {
 		return address;
 	}
 
-	public void setAddress(IpAddress address) {
+	public void setAddress(InetSocketAddress address) {
 		this.address = address;
 	}
 
@@ -139,15 +130,6 @@ public class Transmitter implements Serializable, Searchable {
 	 */
 	public void setStatus(Status status) {
 		this.status = status;
-	}
-
-	/**
-	 * Sets the Core state instance.
-	 *
-	 * @param statePar Core state.
-	 */
-	public static void setState(State statePar) {
-		state = statePar;
 	}
 
 	@Override

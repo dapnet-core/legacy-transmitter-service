@@ -1,11 +1,16 @@
-package de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission;
+package org.dapnet.core.transmission;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.PriorityQueue;
 
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.model.Transmitter;
+import org.dapnet.core.model.Transmitter;
+import org.dapnet.core.transmission.messages.PagerMessage;
+import org.jgroups.stack.IpAddress;
+
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 
 /**
  * This class holds the client session.
@@ -31,11 +36,7 @@ final class TransmitterClient {
 	 * @throws NullPointerException If channel is null.
 	 */
 	public TransmitterClient(Channel channel) {
-		if (channel == null) {
-			throw new NullPointerException("channel");
-		}
-
-		this.channel = channel;
+		this.channel = Objects.requireNonNull(channel, "Channel must not be null.");
 	}
 
 	/**
@@ -48,6 +49,36 @@ final class TransmitterClient {
 		Transmitter theTransmitter = transmitter;
 		if (theTransmitter != null) {
 			return theTransmitter.getName();
+		} else {
+			return channel.id().asShortText();
+		}
+	}
+
+	/**
+	 * Returns the transmitter DeviceType if a transmitter instance is present or
+	 * the short channel ID.
+	 *
+	 * @return Transmitter DeviceType or short channel ID.
+	 */
+	public String getDeviceType() {
+		Transmitter theTransmitter = transmitter;
+		if (theTransmitter != null) {
+			return theTransmitter.getDeviceType();
+		} else {
+			return channel.id().asShortText();
+		}
+	}
+
+	/**
+	 * Returns the transmitter DeviceVersion if a transmitter instance is present or
+	 * the short channel ID.
+	 *
+	 * @return Transmitter DeviceVersion or short channel ID.
+	 */
+	public String getDeviceVersion() {
+		Transmitter theTransmitter = transmitter;
+		if (theTransmitter != null) {
+			return theTransmitter.getDeviceVersion();
 		} else {
 			return channel.id().asShortText();
 		}
@@ -69,7 +100,7 @@ final class TransmitterClient {
 	 */
 	public void setTransmitter(Transmitter transmitter) {
 		if (transmitter != null) {
-			transmitter.setAddress((InetSocketAddress) channel.remoteAddress());
+			transmitter.setAddress(new IpAddress((InetSocketAddress) channel.remoteAddress()));
 		}
 
 		this.transmitter = transmitter;
@@ -152,13 +183,12 @@ final class TransmitterClient {
 	}
 
 	/**
-	 * Closes the connection. This call will block until the connection is closed.
+	 * Closes the connection by calling {@code channel.close()}.
+	 * 
+	 * @return Channel future
 	 */
-	public void close() {
-		Channel theChannel = channel;
-		if (theChannel != null) {
-			theChannel.close().syncUninterruptibly();
-		}
+	public ChannelFuture close() {
+		return channel.close();
 	}
 
 	private int getNextSequenceNumber() {
@@ -173,8 +203,6 @@ final class TransmitterClient {
 			if (msg != null) {
 				currentMessage = new Message(getNextSequenceNumber(), msg);
 				channel.writeAndFlush(currentMessage);
-			} else {
-				return;
 			}
 		} else if (retransmit) {
 			channel.writeAndFlush(currentMessage);
@@ -188,7 +216,6 @@ final class TransmitterClient {
 	 * @author Philipp Thiel
 	 */
 	public static class Message {
-
 		private static final int MAX_RETRY_COUNT = 5;
 		private final int sequenceNumber;
 		private final PagerMessage message;

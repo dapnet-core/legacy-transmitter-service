@@ -1,25 +1,4 @@
-/*
- * DAPNET CORE PROJECT
- * Copyright (C) 2016
- *
- * Daniel Sialkowski
- *
- * daniel.sialkowski@rwth-aachen.de
- *
- * Institute of High Frequency Technology
- * RWTH AACHEN UNIVERSITY
- * Melatener Str. 25
- * 52074 Aachen
- */
-
 package de.rwth_aachen.afu.dapnet.legacy.transmitter_service;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.RabbitMQManager;
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmissionManager;
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmitterServer;
 
 import java.util.Locale;
 import java.util.logging.ConsoleHandler;
@@ -28,18 +7,23 @@ import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class BackwardCompatibilityService {
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-	private static final Logger logger = LogManager.getLogger();
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmissionManager;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmitterServer;
+
+public class Program {
+
+	private static final Logger LOGGER = LogManager.getLogger();
 	private static final String CORE_VERSION;
 	private static final String API_VERSION;
-	private static volatile BackwardCompatibilityService backwardcompatibilityservice;
+	private static volatile Program program;
 	private volatile TransmissionManager transmissionManager;
 	private volatile TransmitterServer transmitterServer;
 
-
 	static {
-		String ver = BackwardCompatibilityService.class.getPackage().getImplementationVersion();
+		String ver = Program.class.getPackage().getImplementationVersion();
 		if (ver != null) {
 			CORE_VERSION = ver;
 		} else {
@@ -59,35 +43,34 @@ public class BackwardCompatibilityService {
 
 	private void start(boolean enforceStartup) {
 		try {
-			logger.info("Starting backward-compatibility-service Version {} ...", CORE_VERSION);
+			LOGGER.info("Starting backward-compatibility-service Version {} ...", CORE_VERSION);
 
-			logger.info("Starting TransmissionManager");
+			LOGGER.info("Starting TransmissionManager");
 			transmissionManager = new TransmissionManager();
 
-			logger.info("Starting Transmitter Server");
+			LOGGER.info("Starting Transmitter Server");
 			transmitterServer = new TransmitterServer(transmissionManager.getTransmitterManager());
 			transmitterServer.start();
 
-
-			logger.info("backward-compatibility-service started");
+			LOGGER.info("backward-compatibility-service started");
 
 		} catch (CoreStartupException e) {
-			logger.fatal("Failed to start backward-compatibility-service: {}", e.getMessage());
+			LOGGER.fatal("Failed to start backward-compatibility-service: {}", e.getMessage());
 			System.exit(1);
 		} catch (Exception e) {
-			logger.fatal("Failed to start backward-compatibility-service.", e);
+			LOGGER.fatal("Failed to start backward-compatibility-service.", e);
 			System.exit(1);
 		}
 	}
 
 	private void stop() {
-		logger.info("Stopping backward-compatibility-service ...");
+		LOGGER.info("Stopping backward-compatibility-service ...");
 
 		if (transmitterServer != null) {
 			transmitterServer.stop();
 		}
 
-		logger.info("backward-compatibility-service stopped");
+		LOGGER.info("backward-compatibility-service stopped");
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -106,11 +89,11 @@ public class BackwardCompatibilityService {
 			@Override
 			public void run() {
 				try {
-					if (backwardcompatibilityservice != null) {
-						backwardcompatibilityservice.stop();
+					if (program != null) {
+						program.stop();
 					}
 				} catch (Exception ex) {
-					logger.fatal("Exception while stopping backwardcompatibilityservice.", ex);
+					LOGGER.fatal("Exception while stopping backwardcompatibilityservice.", ex);
 				}
 
 				// Shutdown log4j
@@ -126,8 +109,8 @@ public class BackwardCompatibilityService {
 			}
 		}
 
-		backwardcompatibilityservice = new BackwardCompatibilityService();
-		backwardcompatibilityservice.start(enforceStartup);
+		program = new Program();
+		program.start(enforceStartup);
 
 	}
 
@@ -152,8 +135,8 @@ public class BackwardCompatibilityService {
 	}
 
 	public static void shutdown() {
-		if (backwardcompatibilityservice != null) {
-			backwardcompatibilityservice.stop();
+		if (program != null) {
+			program.stop();
 		}
 	}
 
