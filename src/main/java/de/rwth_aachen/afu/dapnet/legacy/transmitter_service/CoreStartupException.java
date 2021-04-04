@@ -2,7 +2,7 @@ package de.rwth_aachen.afu.dapnet.legacy.transmitter_service;
 
 public class CoreStartupException extends RuntimeException {
 
-	private static final long serialVersionUID = -4703872721790107028L;
+	private static final long serialVersionUID = 1L;
 
 	public CoreStartupException() {
 	}

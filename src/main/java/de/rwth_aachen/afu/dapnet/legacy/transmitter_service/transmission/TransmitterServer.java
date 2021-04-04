@@ -1,10 +1,11 @@
 package de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission;
 
+import java.util.Objects;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.CoreStartupException;
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.Settings;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -20,8 +21,8 @@ public class TransmitterServer {
 	private final EventLoopGroup workerGroup = new NioEventLoopGroup();
 
 	public TransmitterServer(TransmitterManager manager) {
-		this.port = Settings.getTransmissionSettings().getServerSettings().getPort();
-		this.manager = manager;
+		this.manager = Objects.requireNonNull(manager, "Transmitter manager must not be null.");
+		this.port = manager.getConfiguration().getServerPort();
 	}
 
 	public void start() {

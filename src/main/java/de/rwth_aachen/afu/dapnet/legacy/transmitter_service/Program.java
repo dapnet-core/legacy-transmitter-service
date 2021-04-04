@@ -10,67 +10,56 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmissionManager;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmitterManager;
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmitterServer;
 
 public class Program {
 
 	private static final Logger LOGGER = LogManager.getLogger();
-	private static final String CORE_VERSION;
-	private static final String API_VERSION;
+	private static final String PROGRAM_VERSION;
 	private static volatile Program program;
-	private volatile TransmissionManager transmissionManager;
+	private volatile TransmitterManager transmitterManager;
 	private volatile TransmitterServer transmitterServer;
 
 	static {
 		String ver = Program.class.getPackage().getImplementationVersion();
 		if (ver != null) {
-			CORE_VERSION = ver;
+			PROGRAM_VERSION = ver;
 		} else {
-			CORE_VERSION = "UNKNOWN";
-		}
-
-		// Extract API version from Core version
-		// Use getSpecificationVersion instead?
-		Pattern versionPattern = Pattern.compile("(\\d+\\.\\d+\\.\\d+)\\p{Graph}*");
-		Matcher m = versionPattern.matcher(CORE_VERSION);
-		if (m.matches()) {
-			API_VERSION = m.group(1);
-		} else {
-			API_VERSION = CORE_VERSION;
+			PROGRAM_VERSION = "UNKNOWN";
 		}
 	}
 
-	private void start(boolean enforceStartup) {
+	private void start() {
 		try {
-			LOGGER.info("Starting backward-compatibility-service Version {} ...", CORE_VERSION);
+			LOGGER.info("Starting DAPNET Legacy Transmitter Service {} ...", PROGRAM_VERSION);
 
-			LOGGER.info("Starting TransmissionManager");
-			transmissionManager = new TransmissionManager();
+			LOGGER.info("Starting transmitter manager");
+			transmitterManager = new TransmitterManager();
 
-			LOGGER.info("Starting Transmitter Server");
-			transmitterServer = new TransmitterServer(transmissionManager.getTransmitterManager());
+			LOGGER.info("Starting transmitter server");
+			transmitterServer = new TransmitterServer(transmitterManager);
 			transmitterServer.start();
 
-			LOGGER.info("backward-compatibility-service started");
+			LOGGER.info("Startup complete");
 
 		} catch (CoreStartupException e) {
-			LOGGER.fatal("Failed to start backward-compatibility-service: {}", e.getMessage());
+			LOGGER.fatal("Failed to start Legacy Transmitter Service: {}", e.getMessage());
 			System.exit(1);
 		} catch (Exception e) {
-			LOGGER.fatal("Failed to start backward-compatibility-service.", e);
+			LOGGER.fatal("Failed to start Legacy Transmitter Service.", e);
 			System.exit(1);
 		}
 	}
 
 	private void stop() {
-		LOGGER.info("Stopping backward-compatibility-service ...");
+		LOGGER.info("Stopping legacy-transmitter-service ...");
 
 		if (transmitterServer != null) {
 			transmitterServer.stop();
 		}
 
-		LOGGER.info("backward-compatibility-service stopped");
+		LOGGER.info("legacy-transmitter-service stopped");
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -101,16 +90,8 @@ public class Program {
 			}
 		});
 
-		// Check args
-		boolean enforceStartup = false;
-		for (String arg : args) {
-			if (arg.equals("--enforce-startup")) {
-				enforceStartup = true;
-			}
-		}
-
 		program = new Program();
-		program.start(enforceStartup);
+		program.start();
 
 	}
 
@@ -138,14 +119,6 @@ public class Program {
 		if (program != null) {
 			program.stop();
 		}
-	}
-
-	public static String getCoreVersion() {
-		return CORE_VERSION;
-	}
-
-	public static String getApiVersion() {
-		return API_VERSION;
 	}
 
 }

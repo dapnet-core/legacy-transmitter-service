@@ -1,16 +1,21 @@
 package de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.model.Transmitter;
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.model.Transmitter.Status;
-import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.RabbitMQManager;
-
+import java.time.Instant;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.backend.TransmitterBootstrapService;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.backend.TransmitterHeartbeatService;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.backend.TransmitterMessageQueueManager;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.backend.TransmitterServices;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.config.ServiceConfiguration;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.Transmitter.Status;
 
 /**
  * This class manages connected transmitters.
@@ -20,38 +25,59 @@ import java.util.concurrent.ConcurrentMap;
 public class TransmitterManager {
 	private static final Logger logger = LogManager.getLogger();
 	private final ConcurrentMap<String, TransmitterClient> connectedClients = new ConcurrentHashMap<>();
-	private volatile TransmitterManagerListener listener;
-    private volatile RabbitMQManager rabbitmqmanager;
+	private final ServiceConfiguration configuration;
+	private final TransmitterServices transmitterServices;
+	private final TransmitterMessageQueueManager mqManager;
 
-    public TransmitterManager () {
-        logger.info("Starting RabbitQM Manager");
-        try {
-            rabbitmqmanager = new RabbitMQManager("dapnet.calls", this);
-        } catch (Exception e) {
-        }
-    }
 	/**
-	 * Gets a transmitter by its name.
+	 * Constructs a new transmitter manager instance.
 	 * 
-	 * @param name Transmitter name
-	 * @return Transmitter or {@code null} if not found.
+	 * @param configManager       Configuration manager to use
+	 * @param transmitterServices Transmitter services to use
+	 * @throws NullPointerException if transmitterServices is {@code null}
 	 */
-	public Transmitter getTransmitter(String name) {
-		TransmitterManagerListener theListener = listener;
-		if (theListener != null) {
-			return theListener.handleGetTransmitter(name.toLowerCase());
-		} else {
-			return null;
-		}
+	public TransmitterManager(ServiceConfiguration configuration, TransmitterServices transmitterServices,
+			TransmitterMessageQueueManager mqManager) {
+		this.configuration = Objects.requireNonNull(configuration, "Transmitter configuration must not be null.");
+		this.transmitterServices = Objects.requireNonNull(transmitterServices,
+				"Transmitter services must not be null.");
+		this.mqManager = Objects.requireNonNull(mqManager, "Message queue manager must not be null.");
 	}
 
 	/**
-	 * Sets the event listener.
+	 * Gets the transmitter configuration.
 	 * 
-	 * @param listener Event listener instance.
+	 * @return Transmitter configuration
 	 */
-	public void setListener(TransmitterManagerListener listener) {
-		this.listener = listener;
+	public ServiceConfiguration getConfiguration() {
+		return configuration;
+	}
+
+	/**
+	 * Gets the transmitter heartbeat service.
+	 * 
+	 * @return Transmitter heartbeat service
+	 */
+	public TransmitterHeartbeatService getHearbeatService() {
+		return transmitterServices;
+	}
+
+	/**
+	 * Gets the transmitter bootstrap service.
+	 * 
+	 * @return Transmitter bootstrap service
+	 */
+	public TransmitterBootstrapService getBootstrapService() {
+		return transmitterServices;
+	}
+
+	/**
+	 * Gets an unmodifyable collection of the currently connected clients.
+	 * 
+	 * @return Collection of transmitter clients
+	 */
+	public Collection<TransmitterClient> getConnectedClients() {
+		return Collections.unmodifiableCollection(connectedClients.values());
 	}
 
 	/**
@@ -64,13 +90,22 @@ public class TransmitterManager {
 	}
 
 	/**
+	 * Sends messages to all connected transmitters.
+	 * 
+	 * @param messages Messages to send
+	 */
+	public void sendMessages(Collection<PagerMessage> messages) {
+		connectedClients.values().forEach(c -> c.sendMessages(messages));
+	}
+
+	/**
 	 * Sends a message to a specific connected transmitter.
 	 * 
 	 * @param message         Message to send.
 	 * @param transmitterName Transmitter name.
 	 */
 	public void sendMessage(PagerMessage message, String transmitterName) {
-		TransmitterClient cl = connectedClients.get(transmitterName.toLowerCase());
+		TransmitterClient cl = connectedClients.get(NamedObject.normalize(transmitterName));
 		if (cl != null) {
 			cl.sendMessage(message);
 		}
@@ -83,12 +118,11 @@ public class TransmitterManager {
 	 * @param transmitterName Transmitter name.
 	 */
 	public void sendMessages(Collection<PagerMessage> messages, String transmitterName) {
-		TransmitterClient cl = connectedClients.get(transmitterName.toLowerCase());
+		TransmitterClient cl = connectedClients.get(NamedObject.normalize(transmitterName));
 		if (cl != null) {
 			cl.sendMessages(messages);
 		}
 	}
-
 
 	/**
 	 * Callback to handle connect events.
@@ -99,22 +133,28 @@ public class TransmitterManager {
 		Transmitter t = client.getTransmitter();
 		if (t == null) {
 			logger.warn("Client has no associated transmitter object.");
-			client.close();
+			client.close().syncUninterruptibly();
 			return;
 		}
 
 		t.setStatus(Status.ONLINE);
 
-		connectedClients.put(t.getName().toLowerCase(), client);
+		Instant lastConnected = Instant.now();
+		t.setLastConnected(lastConnected);
+		t.setConnectedSince(lastConnected);
 
-		notifyStatusChanged(listener, t);
+		final String transmitterName = t.getNormalizedName();
+		connectedClients.put(transmitterName, client);
 
-		// Add RabbitMQ queue
-        try {
-            rabbitmqmanager.addRabbitMQQueue(t.getName());
-        }
-        catch (Exception e) {
-        }
+		logger.debug("Binding queue for transmitter '{}'", transmitterName);
+
+		try {
+			if (!mqManager.bindTransmitterQueue(transmitterName)) {
+				logger.error("Failed to bind to queue for transmitter '{}'", transmitterName);
+			}
+		} catch (Exception ex) {
+			logger.error("Failed to bind queue for transmitter.", ex);
+		}
 	}
 
 	/**
@@ -123,7 +163,7 @@ public class TransmitterManager {
 	 * @param client Transmitter to remove.
 	 */
 	public void onDisconnect(TransmitterClient client) {
-		Transmitter t = client.getTransmitter();
+		final Transmitter t = client.getTransmitter();
 		if (t == null) {
 			return;
 		}
@@ -131,21 +171,20 @@ public class TransmitterManager {
 		if (t.getStatus() != Status.ERROR) {
 			t.setStatus(Status.OFFLINE);
 		}
-		// Pause RabbitMQ queue
+
+		t.setConnectedSince(null);
+
+		final String transmitterName = t.getNormalizedName();
+		connectedClients.remove(transmitterName);
+
+		logger.debug("Canceling queue for transmitter '{}'", transmitterName);
+
 		try {
-			rabbitmqmanager.pauseRabbitMQQueue(t.getName());
-		}
-		catch (Exception e) {
-		}
-
-		connectedClients.remove(t.getName().toLowerCase());
-
-		notifyStatusChanged(listener, t);
-	}
-
-	private static void notifyStatusChanged(TransmitterManagerListener listener, Transmitter t) {
-		if (listener != null) {
-			listener.handleTransmitterStatusChanged(t);
+			if (!mqManager.cancelTransmitterQueue(transmitterName)) {
+				logger.error("Failed to cancel queue for transmitter '{}'", transmitterName);
+			}
+		} catch (Exception ex) {
+			logger.error("Failed to cancel queue for transmitter.", ex);
 		}
 	}
 
@@ -153,12 +192,7 @@ public class TransmitterManager {
 	 * Disconnects from all connected transmitters.
 	 */
 	public void disconnectFromAll() {
-		connectedClients.values().forEach(cl -> cl.close());
-
-		TransmitterManagerListener theListener = listener;
-		if (theListener != null) {
-			theListener.handleDisconnectedFromAllTransmitters();
-		}
+		connectedClients.values().forEach(cl -> cl.close().syncUninterruptibly());
 	}
 
 	/**
@@ -167,9 +201,10 @@ public class TransmitterManager {
 	 * @param t Transmitter to disconnect from.
 	 */
 	public void disconnectFrom(Transmitter t) {
-		TransmitterClient cl = connectedClients.remove(t.getName().toLowerCase());
+		TransmitterClient cl = connectedClients.remove(t.getNormalizedName());
 		if (cl != null) {
-			cl.close();
+			cl.close().syncUninterruptibly();
 		}
 	}
+
 }
