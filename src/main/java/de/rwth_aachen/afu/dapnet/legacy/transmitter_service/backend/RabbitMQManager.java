@@ -39,7 +39,7 @@ import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMe
  * @author Philipp Thiel
  *
  */
-public class TransmitterMessageQueueManagerImpl implements TransmitterMessageQueueManager {
+public class RabbitMQManager implements TransmitterMessageQueueManager {
 
 	private static final Logger LOGGER = LogManager.getLogger();
 	private final ConcurrentMap<String, String> activeQueues = new ConcurrentHashMap<>();
@@ -60,8 +60,8 @@ public class TransmitterMessageQueueManagerImpl implements TransmitterMessageQue
 	 * @throws TimeoutException     May be caused by connecting to the message queue
 	 *                              host
 	 */
-	public TransmitterMessageQueueManagerImpl(ServiceConfiguration configuration,
-			PagerMessageDispatcher messageDispatcher) throws IOException, TimeoutException {
+	public RabbitMQManager(ServiceConfiguration configuration, PagerMessageDispatcher messageDispatcher)
+			throws IOException, TimeoutException {
 		if (configuration == null) {
 			throw new NullPointerException("Service configuration must not be null.");
 		}

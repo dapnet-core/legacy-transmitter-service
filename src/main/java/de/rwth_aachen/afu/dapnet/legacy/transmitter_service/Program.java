@@ -1,48 +1,65 @@
 package de.rwth_aachen.afu.dapnet.legacy.transmitter_service;
 
+import java.io.IOException;
 import java.util.Locale;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.backend.RabbitMQManager;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.backend.TransmitterServices;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.config.PropertyReader;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.config.PropertyReaderFactory;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.config.ServiceConfiguration;
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmitterManager;
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmitterServer;
 
 public class Program {
 
 	private static final Logger LOGGER = LogManager.getLogger();
-	private static final String PROGRAM_VERSION;
-	private static volatile Program program;
+	private volatile RabbitMQManager mqManager;
 	private volatile TransmitterManager transmitterManager;
 	private volatile TransmitterServer transmitterServer;
 
-	static {
-		String ver = Program.class.getPackage().getImplementationVersion();
-		if (ver != null) {
-			PROGRAM_VERSION = ver;
-		} else {
-			PROGRAM_VERSION = "UNKNOWN";
+	private static ServiceConfiguration loadConfigurationFile() {
+		final String configFile = System.getProperty("dapnet.config_file", "legacy-service.properties");
+
+		LOGGER.info("Using configuration file '{}'", configFile);
+
+		try {
+			PropertyReader reader = PropertyReaderFactory.fromFile(configFile);
+
+			ServiceConfiguration config = new ServiceConfiguration();
+			config.loadConfiguration(reader);
+
+			return config;
+		} catch (IOException ex) {
+			throw new CoreStartupException("Failed to load configuration file: " + configFile, ex);
 		}
 	}
 
 	private void start() {
 		try {
-			LOGGER.info("Starting DAPNET Legacy Transmitter Service {} ...", PROGRAM_VERSION);
+			final String version = Program.class.getPackage().getImplementationVersion();
+			LOGGER.info("Starting DAPNET Legacy Transmitter Service {} ...", version);
+
+			final ServiceConfiguration config = loadConfigurationFile();
+			final TransmitterServices transmitterServices = new TransmitterServices(config);
+
+			LOGGER.info("Starting message queue manager");
+			mqManager = new RabbitMQManager(config, null);
 
 			LOGGER.info("Starting transmitter manager");
-			transmitterManager = new TransmitterManager();
+			transmitterManager = new TransmitterManager(config, transmitterServices, mqManager);
 
 			LOGGER.info("Starting transmitter server");
 			transmitterServer = new TransmitterServer(transmitterManager);
 			transmitterServer.start();
 
-			LOGGER.info("Startup complete");
-
+			LOGGER.info("Startup completed");
 		} catch (CoreStartupException e) {
 			LOGGER.fatal("Failed to start Legacy Transmitter Service: {}", e.getMessage());
 			System.exit(1);
@@ -53,13 +70,17 @@ public class Program {
 	}
 
 	private void stop() {
-		LOGGER.info("Stopping legacy-transmitter-service ...");
+		LOGGER.info("Stopping the service ...");
 
-		if (transmitterServer != null) {
-			transmitterServer.stop();
+		if (mqManager != null) {
+			mqManager.shutdown();
 		}
 
-		LOGGER.info("legacy-transmitter-service stopped");
+		if (transmitterServer != null) {
+			transmitterServer.shutdown();
+		}
+
+		LOGGER.info("The service has been stopped.");
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -73,24 +94,22 @@ public class Program {
 		// Set language to English
 		Locale.setDefault(Locale.ENGLISH);
 
+		Program program = new Program();
+
 		// Register shutdown hook
-		Runtime.getRuntime().addShutdownHook(new Thread("ShutdownHook") {
-			@Override
-			public void run() {
-				try {
-					if (program != null) {
-						program.stop();
-					}
-				} catch (Exception ex) {
-					LOGGER.fatal("Exception while stopping backwardcompatibilityservice.", ex);
-				}
-
-				// Shutdown log4j
-				LogManager.shutdown();
+		Runnable shutdownTask = () -> {
+			try {
+				program.stop();
+			} catch (Exception ex) {
+				LOGGER.fatal("Exception while stopping backwardcompatibilityservice.", ex);
 			}
-		});
 
-		program = new Program();
+			// Shutdown log4j
+			LogManager.shutdown();
+		};
+
+		Runtime.getRuntime().addShutdownHook(new Thread(shutdownTask, "ShutdownHook"));
+
 		program.start();
 
 	}
@@ -113,12 +132,6 @@ public class Program {
 		}
 		// set the console handler to fine:
 		consoleHandler.setLevel(Level.WARNING);
-	}
-
-	public static void shutdown() {
-		if (program != null) {
-			program.stop();
-		}
 	}
 
 }

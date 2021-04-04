@@ -41,7 +41,10 @@ public class TransmitterServer {
 		}
 	}
 
-	public void stop() {
+	/**
+	 * Stops the transmitter server.
+	 */
+	public void shutdown() {
 		try {
 			bossGroup.shutdownGracefully().sync();
 		} catch (Exception e) {
