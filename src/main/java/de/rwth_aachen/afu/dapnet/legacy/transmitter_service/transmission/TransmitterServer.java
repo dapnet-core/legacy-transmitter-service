@@ -12,21 +12,36 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
+/**
+ * This class implements the transmitter server.
+ * 
+ * @author Philipp Thiel
+ */
 public class TransmitterServer {
 
 	private static final Logger LOGGER = LogManager.getLogger();
-	private final int port;
 	private final TransmitterManager manager;
 	private final EventLoopGroup bossGroup = new NioEventLoopGroup(1);
 	private final EventLoopGroup workerGroup = new NioEventLoopGroup();
 
+	/**
+	 * Constructs a new object instance.
+	 * 
+	 * @param manager Transmitter manager to use
+	 */
 	public TransmitterServer(TransmitterManager manager) {
 		this.manager = Objects.requireNonNull(manager, "Transmitter manager must not be null.");
-		this.port = manager.getConfiguration().getServerPort();
 	}
 
+	/**
+	 * Starts the transmitter server.
+	 * 
+	 * @throws CoreStartupException if the server startup fails
+	 */
 	public void start() {
 		try {
+			int port = manager.getConfiguration().getServerPort();
+
 			ServerBootstrap b = new ServerBootstrap();
 			b.group(bossGroup, workerGroup);
 			b.channel(NioServerSocketChannel.class);
