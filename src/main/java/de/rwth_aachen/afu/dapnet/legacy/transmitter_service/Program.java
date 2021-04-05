@@ -20,6 +20,7 @@ import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.Transmi
 public class Program {
 
 	private static final Logger LOGGER = LogManager.getLogger();
+	private volatile ThreadedPagerMessageDispatcher messageDispatcher;
 	private volatile RabbitMQManager mqManager;
 	private volatile TransmitterManager transmitterManager;
 	private volatile TransmitterServer transmitterServer;
@@ -50,10 +51,12 @@ public class Program {
 			final TransmitterServices transmitterServices = new TransmitterServices(config);
 
 			LOGGER.info("Starting message queue manager");
-			mqManager = new RabbitMQManager(config, null);
+			messageDispatcher = new ThreadedPagerMessageDispatcher();
+			mqManager = new RabbitMQManager(config, messageDispatcher);
 
 			LOGGER.info("Starting transmitter manager");
 			transmitterManager = new TransmitterManager(config, transmitterServices, mqManager);
+			messageDispatcher.setConsumer(transmitterManager::sendMessage);
 
 			LOGGER.info("Starting transmitter server");
 			transmitterServer = new TransmitterServer(transmitterManager);
@@ -71,6 +74,10 @@ public class Program {
 
 	private void stop() {
 		LOGGER.info("Stopping the service ...");
+
+		if (messageDispatcher != null) {
+			messageDispatcher.shutdown();
+		}
 
 		if (mqManager != null) {
 			mqManager.shutdown();
