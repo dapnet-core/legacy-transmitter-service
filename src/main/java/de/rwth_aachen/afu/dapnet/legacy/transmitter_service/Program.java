@@ -17,6 +17,12 @@ import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.config.ServiceConfig
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmitterManager;
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.TransmitterServer;
 
+/**
+ * This class contains the application entry point of the DAPNET Legacy
+ * Transmitter Service.
+ * 
+ * @author Philipp Thiel
+ */
 public class Program {
 
 	private static final Logger LOGGER = LogManager.getLogger();
@@ -51,7 +57,7 @@ public class Program {
 			final TransmitterServices transmitterServices = new TransmitterServices(config);
 
 			LOGGER.info("Starting message queue manager");
-			messageDispatcher = new ThreadedPagerMessageDispatcher();
+			messageDispatcher = new ThreadedPagerMessageDispatcher(2);
 			mqManager = new RabbitMQManager(config, messageDispatcher);
 
 			LOGGER.info("Starting transmitter manager");
@@ -75,14 +81,21 @@ public class Program {
 	private void stop() {
 		LOGGER.info("Stopping the service ...");
 
-		if (messageDispatcher != null) {
-			messageDispatcher.shutdown();
-		}
-
+		// Order is important here
+		// First, shutdown the RabbitMQ manager, so no new messages are forwarded to the
+		// dispatcher
 		if (mqManager != null) {
 			mqManager.shutdown();
 		}
 
+		// Next the message dispatcher must be stopped. This will wait until all worker
+		// threads have finished.
+		if (messageDispatcher != null) {
+			messageDispatcher.shutdown();
+		}
+
+		// Finally, stop the transmitter service. This will disconnect all transmitter
+		// clients
 		if (transmitterServer != null) {
 			transmitterServer.shutdown();
 		}

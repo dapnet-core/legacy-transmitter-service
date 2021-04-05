@@ -1,5 +1,10 @@
 package de.rwth_aachen.afu.dapnet.legacy.transmitter_service.config;
 
+/**
+ * Service configuration parameters.
+ * 
+ * @author Philipp Thiel
+ */
 public class ServiceConfiguration extends Configuration {
 
 	private String amqpHost;
@@ -16,55 +21,99 @@ public class ServiceConfiguration extends Configuration {
 
 	@Override
 	public void loadConfiguration(PropertyReader reader) {
+		// RabbitMQ settings
 		amqpHost = reader.getString("amqp.host").orElseThrow();
 		amqpUser = reader.getString("amqp.user").orElseThrow();
 		amqpPassword = reader.getString("amqp.password").orElseThrow();
 		amqpExchangeName = reader.getString("amqp.exchange").orElseThrow();
 
+		// Service URLs
 		bootstrapUrl = reader.getString("services.bootstrap").orElseThrow();
 		heartbeatUrl = reader.getString("services.heartbeat").orElseThrow();
 
+		// Transmitter server settings
 		serverPort = reader.getInteger("serverPort").orElse(43434);
 		numSyncLoops = reader.getInteger("numberOfSyncLoops").orElse(5);
 		sendSpeed = reader.getInteger("sendSpeed").orElse(1);
 	}
 
+	/**
+	 * Gets the host name for the RabbitMQ server.
+	 * 
+	 * @return Host name
+	 */
 	public String getAmqpHost() {
 		return amqpHost;
 	}
 
+	/**
+	 * Gets the user name for the RabbitMQ server.
+	 * 
+	 * @return User name
+	 */
 	public String getAmqpUser() {
 		return amqpUser;
 	}
 
+	/**
+	 * Gets the password for the RabbitMQ server.
+	 * 
+	 * @return Password
+	 */
 	public String getAmqpPassword() {
 		return amqpPassword;
 	}
 
+	/**
+	 * Gets the exchange name for the RabbitMQ server.
+	 * 
+	 * @return Exchange name
+	 */
 	public String getAmqpExchangeName() {
 		return amqpExchangeName;
 	}
 
+	/**
+	 * Gets the transmitter bootstrap service URL
+	 * 
+	 * @return Transmitter bootstrap service URL
+	 */
 	public String getBootstrapUrl() {
 		return bootstrapUrl;
 	}
 
+	/**
+	 * Gets the transmitter heartbeat service URL.
+	 * 
+	 * @return Transmitter heartbeat service URL
+	 */
 	public String getHeartbeatUrl() {
 		return heartbeatUrl;
 	}
 
-	public int getNumSyncLoops() {
-		return numSyncLoops;
-	}
-
+	/**
+	 * Gets the port the transmitter server should listen on.
+	 * 
+	 * @return Transmitter server port
+	 */
 	public int getServerPort() {
 		return serverPort;
 	}
 
+	/**
+	 * Gets the number of sync loops for the transmitter handshake.
+	 * 
+	 * @return Number of sync loops to perform
+	 */
 	public int getNumberOfSyncLoops() {
 		return numSyncLoops;
 	}
 
+	/**
+	 * Gets the pager send speed (i.e. baud rate).
+	 * 
+	 * @return Pager baud rate
+	 */
 	public int getSendSpeed() {
 		return sendSpeed;
 	}

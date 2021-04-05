@@ -12,12 +12,31 @@ import org.apache.logging.log4j.Logger;
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.backend.PagerMessageDispatcher;
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMessage;
 
-class ThreadedPagerMessageDispatcher implements PagerMessageDispatcher {
+/**
+ * A pager message dispatcher that uses an executor service to dispatch incoming
+ * messages to a consumer.
+ * 
+ * @author Philipp Thiel
+ */
+final class ThreadedPagerMessageDispatcher implements PagerMessageDispatcher {
 
 	private static final Logger LOGGER = LogManager.getLogger();
-	private final ExecutorService executor = Executors.newFixedThreadPool(2);
+	private final ExecutorService executor;
 	private volatile BiConsumer<PagerMessage, String> consumer = null;
 
+	/**
+	 * Constructs a new message dispatcher instance.
+	 * 
+	 * @param numThreads Number of threads for the executor service
+	 */
+	public ThreadedPagerMessageDispatcher(int numThreads) {
+		executor = Executors.newFixedThreadPool(numThreads);
+	}
+
+	/**
+	 * Stops the message dispatcher. This will wait until all pending tasks have
+	 * been finished.
+	 */
 	public void shutdown() {
 		LOGGER.info("Shutting down executor service.");
 		executor.shutdown();
@@ -26,10 +45,16 @@ class ThreadedPagerMessageDispatcher implements PagerMessageDispatcher {
 		try {
 			executor.awaitTermination(30, TimeUnit.SECONDS);
 		} catch (InterruptedException ex) {
-			LOGGER.error("Thread has been interrupted.");
+			LOGGER.error("Waiting for thread has been interrupted.");
 		}
 	}
 
+	/**
+	 * Sets the pager message consumer. The incoming pager messages will be
+	 * dispatched to this consumer by the worker threads.
+	 * 
+	 * @param consumer Pager message consumer
+	 */
 	public void setConsumer(BiConsumer<PagerMessage, String> consumer) {
 		this.consumer = consumer;
 	}
@@ -37,15 +62,14 @@ class ThreadedPagerMessageDispatcher implements PagerMessageDispatcher {
 	@Override
 	public void dispatchMessage(PagerMessage message, String transmitterName) {
 		if (message == null || transmitterName == null) {
-			LOGGER.warn("Invalid message received, message or transmitter name is null.");
+			LOGGER.warn("Cannot dispatch pager message, message or transmitter name is null.");
 			return;
 		}
 
-		Runnable task = new DispatchMessageTask(message, transmitterName);
 		try {
-			executor.execute(task);
+			executor.execute(new DispatchMessageTask(message, transmitterName));
 		} catch (RejectedExecutionException ex) {
-			// Usually if shutdown has been called
+			// Usually occurs if shutdown() has been called
 			LOGGER.warn("Could not send message to transmitter '{}', task was rejected by executor.", transmitterName);
 		}
 	}
