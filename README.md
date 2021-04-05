@@ -8,4 +8,4 @@ TODO
 TODO
 
 ## License
-TODO
+The DAPNET Legacy Transmitter Service is licensed under the GNU GPLv3. A copy of the license is included in the repository.
