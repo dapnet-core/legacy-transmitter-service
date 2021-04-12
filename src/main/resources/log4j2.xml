@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- ~ DAPNET CORE PROJECT ~ Copyright (C) 2016 ~ ~ Daniel Sialkowski ~ ~ 
-	daniel.sialkowski@rwth-aachen.de ~ ~ Institute of High Frequency Technology 
-	~ RWTH AACHEN UNIVERSITY ~ Melatener Str. 25 ~ 52074 Aachen -->
-
 <Configuration monitorInterval="30" shutdownHook="disable">
 	<Appenders>
 		<Console name="Console" target="SYSTEM_OUT">
-			<PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+			<PatternLayout
+				pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
 		</Console>
-		<RollingFile name="RollingFile" fileName="logs/backward-compatibility-service.log"
-					 filePattern="logs/backward-compatibility-service-%d{MM-dd-yyyy}.log.gz"
-					 ignoreExceptions="false">
+		<RollingFile name="RollingFile"
+			fileName="logs/legacy-service.log"
+			filePattern="logs/legacy-service-%d{MM-dd-yyyy}.log.gz"
+			ignoreExceptions="false">
 			<PatternLayout>
 				<Pattern>%d %p %c [%t] %m%n</Pattern>
 			</PatternLayout>
@@ -26,23 +24,8 @@
 		<!--Available level: all, trace, debug, info, warn, error, fatal, off -->
 
 		<!--Main -->
-		<logger name="org.dapnet.backwardcompatibilityservice.DAPNETCore" level="info" />
-		<logger name="org.dapnet.backwardcompatibilityservice.Settings" level="info" />
-
-		<!--Transmission -->
-		<logger name="org.dapnet.backwardcompatibilityservice.transmission.TransmissionManager"
-				level="info" />
-		<logger name="org.dapnet.backwardcompatibilityservice.transmission.TransmitterDeviceManager"
-				level="info" />
-		<logger name="org.dapnet.backwardcompatibilityservice.transmission.TransmitterDevice"
-				level="info" />
-		<logger name="org.dapnet.backwardcompatibilityservice.transmission.Raspager" level="info" />
-		<logger name="org.dapnet.backwardcompatibilityservice.transmission.SkyperProtocol"
-				level="info" />
-
-		<!--Model -->
-		<logger name="org.dapnet.backwardcompatibilityservice.model.state" level="info" />
-
-
+		<logger
+			name="de.rwth_aachen.afu.dapnet.legacy.transmitter_service"
+			level="info" />
 	</Loggers>
 </Configuration>
