@@ -94,11 +94,52 @@ public class PagerMessage implements Comparable<PagerMessage> {
 		}
 	}
 
+	public enum SendSpeed {
+		BPS_512(0), BPS_1200(1), BPS_2400(2);
+
+		private int value;
+
+		private SendSpeed(int value) {
+			this.value = value;
+		}
+
+		/**
+		 * Gets the integer value of the sub-address.
+		 * 
+		 * @return Integer value
+		 */
+		public int getValue() {
+			return value;
+		}
+
+		/**
+		 * Gets a send speed from an integer value.
+		 * 
+		 * @param value Integer value (0-2)
+		 * @return Send speed in bps
+		 * @throws IllegalArgumentException if {@code value} is outside the allowed
+		 *                                  range.
+		 */
+		public static SendSpeed fromValue(int value) {
+			switch (value) {
+			case 0:
+				return BPS_512;
+			case 1:
+				return BPS_1200;
+			case 2:
+				return BPS_2400;
+			default:
+				throw new IllegalArgumentException("Not a valid send speed.");
+			}
+		}
+	}
+
 	private final Instant timestamp;
 	private final Priority priority;
 	private final int address;
 	private final SubAddress subAddress;
 	private final ContentType type;
+	private final SendSpeed sendSpeed;
 	private final String content;
 
 	/**
@@ -109,15 +150,17 @@ public class PagerMessage implements Comparable<PagerMessage> {
 	 * @param address    Destination address
 	 * @param subAddress Sub-address
 	 * @param type       Content type
+	 * @param sendSpeed  Send speed in bps
 	 * @param content    Message content
 	 */
 	public PagerMessage(Instant timestamp, Priority priority, int address, SubAddress subAddress, ContentType type,
-			String content) {
+			SendSpeed sendSpeed, String content) {
 		this.timestamp = timestamp;
 		this.priority = priority;
 		this.address = address;
 		this.subAddress = subAddress;
 		this.type = type;
+		this.sendSpeed = sendSpeed;
 		this.content = content;
 	}
 
@@ -128,10 +171,12 @@ public class PagerMessage implements Comparable<PagerMessage> {
 	 * @param address    Destination address
 	 * @param subAddress Sub-address
 	 * @param type       Content type
+	 * @param sendSpeed  Send speed in bps
 	 * @param content    Message content
 	 */
-	public PagerMessage(Priority priority, int address, SubAddress subAddress, ContentType type, String content) {
-		this(Instant.now(), priority, address, subAddress, type, content);
+	public PagerMessage(Priority priority, int address, SubAddress subAddress, ContentType type, SendSpeed sendSpeed,
+			String content) {
+		this(Instant.now(), priority, address, subAddress, type, sendSpeed, content);
 	}
 
 	public Instant getTimestamp() {
@@ -152,6 +197,10 @@ public class PagerMessage implements Comparable<PagerMessage> {
 
 	public SubAddress getSubAddress() {
 		return subAddress;
+	}
+
+	public SendSpeed getSendSpeed() {
+		return sendSpeed;
 	}
 
 	public String getContent() {

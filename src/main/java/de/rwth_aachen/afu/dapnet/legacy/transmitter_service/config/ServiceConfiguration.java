@@ -35,7 +35,6 @@ public class ServiceConfiguration extends Configuration {
 
 	private int serverPort = 43434;
 	private int numSyncLoops = 5;
-	private int sendSpeed = 1; // 0: 512, 1: 1200, 2:2400
 
 	@Override
 	public void loadConfiguration(PropertyReader reader) {
@@ -52,7 +51,6 @@ public class ServiceConfiguration extends Configuration {
 		// Transmitter server settings
 		serverPort = reader.getInteger("serverPort").orElse(43434);
 		numSyncLoops = reader.getInteger("numberOfSyncLoops").orElse(5);
-		sendSpeed = reader.getInteger("sendSpeed").orElse(1);
 	}
 
 	/**
@@ -125,15 +123,6 @@ public class ServiceConfiguration extends Configuration {
 	 */
 	public int getNumberOfSyncLoops() {
 		return numSyncLoops;
-	}
-
-	/**
-	 * Gets the pager send speed (i.e. baud rate).
-	 * 
-	 * @return Pager baud rate
-	 */
-	public int getSendSpeed() {
-		return sendSpeed;
 	}
 
 }

@@ -37,12 +37,11 @@ import io.netty.handler.codec.string.StringEncoder;
 class ServerInitializer extends ChannelInitializer<SocketChannel> {
 	private static final StringEncoder encoder = new StringEncoder(StandardCharsets.US_ASCII);
 	private static final StringDecoder decoder = new StringDecoder(StandardCharsets.US_ASCII);
+	private final MessageEncoder msgEncoder = new MessageEncoder();
 	private final TransmitterManager manager;
-	private final MessageEncoder msgEncoder;
 
 	public ServerInitializer(TransmitterManager manager) {
 		this.manager = Objects.requireNonNull(manager, "Transmitter manager must not be null.");
-		msgEncoder = new MessageEncoder(manager.getConfiguration().getSendSpeed());
 	}
 
 	@Override

@@ -49,6 +49,7 @@ import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.config.ServiceConfig
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMessage;
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMessage.ContentType;
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMessage.Priority;
+import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMessage.SendSpeed;
 import de.rwth_aachen.afu.dapnet.legacy.transmitter_service.transmission.PagerMessage.SubAddress;
 
 /**
@@ -235,12 +236,6 @@ public class RabbitMQManager implements TransmitterMessageQueueManager {
 				return null;
 			}
 
-			final JsonString data = messageObject.getJsonString("data");
-			if (data == null) {
-				LOGGER.error("String 'data' not found in JSON message.");
-				return null;
-			}
-
 			final JsonNumber ric = messageObject.getJsonNumber("ric");
 			if (ric == null) {
 				LOGGER.error("Number 'ric' not found in JSON message.");
@@ -261,7 +256,64 @@ public class RabbitMQManager implements TransmitterMessageQueueManager {
 				return null;
 			}
 
-			return new PagerMessage(Priority.CALL, ric.intValue(), subAddr, ContentType.ALPHANUMERIC, data.getString());
+			final JsonString type = messageObject.getJsonString("type");
+			if (type == null) {
+				LOGGER.error("Number 'type' not found in JSON message.");
+				return null;
+			}
+
+			ContentType contentType;
+			try {
+				contentType = getContentType(type.getString());
+			} catch (IllegalArgumentException e) {
+				LOGGER.error("Unsupported content type: {}", type.getString());
+				return null;
+			}
+
+			final JsonNumber speed = messageObject.getJsonNumber("speed");
+			if (speed == null) {
+				LOGGER.error("Number 'speed' not found in JSON message.");
+				return null;
+			}
+
+			SendSpeed sendSpeed;
+			try {
+				sendSpeed = getSendSpeed(speed.intValue());
+			} catch (IllegalArgumentException ex) {
+				LOGGER.error("Unsupported send speed type: {}", speed.intValue());
+				return null;
+			}
+
+			final JsonString data = messageObject.getJsonString("data");
+			if (data == null) {
+				LOGGER.error("String 'data' not found in JSON message.");
+				return null;
+			}
+
+			return new PagerMessage(Priority.CALL, ric.intValue(), subAddr, contentType, sendSpeed, data.getString());
+		}
+
+		private ContentType getContentType(String raw) {
+			if ("alphanum".equalsIgnoreCase(raw)) {
+				return ContentType.ALPHANUMERIC;
+			} else if ("numeric".equalsIgnoreCase(raw)) {
+				return ContentType.NUMERIC;
+			} else {
+				throw new IllegalArgumentException("Invalid content type");
+			}
+		}
+
+		private SendSpeed getSendSpeed(int speed) {
+			switch (speed) {
+			case 512:
+				return SendSpeed.BPS_512;
+			case 1200:
+				return SendSpeed.BPS_1200;
+			case 2400:
+				return SendSpeed.BPS_2400;
+			default:
+				throw new IllegalArgumentException("Invalid send speed.");
+			}
 		}
 
 	}

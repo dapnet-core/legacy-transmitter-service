@@ -39,12 +39,6 @@ class MessageEncoder extends MessageToMessageEncoder<Message> {
 	public static final int MT_NUMERIC = 5;
 	public static final int MT_ALPHANUM = 6;
 
-	private final int sendSpeed;
-
-	public MessageEncoder(int sendSpeed) {
-		this.sendSpeed = sendSpeed;
-	}
-
 	@Override
 	protected void encode(ChannelHandlerContext ctx, Message msg, List<Object> out) throws Exception {
 		final PagerMessage pm = msg.getMessage();
@@ -61,8 +55,8 @@ class MessageEncoder extends MessageToMessageEncoder<Message> {
 			break;
 		}
 
-		String encoded = String.format("#%02X %s:%X:%X:%s:%s\n", msg.getSequenceNumber(), type, sendSpeed,
-				pm.getAddress(), pm.getSubAddress().getValue(), pm.getContent());
+		String encoded = String.format("#%02X %s:%X:%X:%s:%s\n", msg.getSequenceNumber(), type,
+				pm.getSendSpeed().getValue(), pm.getAddress(), pm.getSubAddress().getValue(), pm.getContent());
 
 		out.add(encoded);
 	}

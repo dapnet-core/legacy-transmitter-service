@@ -22,8 +22,6 @@ After extracting the service binaries, the service must be configured. An exampl
 	# Transmitter server
 	#serverPort=43434
 	#numberOfSyncLoops=5
-	# Send speed in bps: 0=512, 1=1200, 2=2400
-	#sendSpeed=1
 
 Note that you probably have to adjust only some of the settings, e.g. use the proper server names and credentials. Lines that are commented out denote default values.
 
