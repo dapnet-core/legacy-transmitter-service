@@ -13,19 +13,19 @@ After extracting the service binaries, the service must be configured. An exampl
 	amqp.host=server-name
 	amqp.user=user
 	amqp.password=pa$$w0rd
-	amqp.exchange=dapnet.calls
+	#amqp.exchange=dapnet.local_calls
 	
 	# Service URLs
 	services.bootstrap=http://transmitter-service/transmitters/_bootstrap
 	services.heartbeat=http://transmitter-service/transmitters/_heartbeat
 	
 	# Transmitter server
-	serverPort=43434
-	numberOfSyncLoops=5
+	#serverPort=43434
+	#numberOfSyncLoops=5
 	# Send speed in bps: 0=512, 1=1200, 2=2400
-	sendSpeed=1
+	#sendSpeed=1
 
-Note that you have to adjust the settings, i.e. use the proper server names and credentials.
+Note that you probably have to adjust only some of the settings, e.g. use the proper server names and credentials. Lines that are commented out denote default values.
 
 ## Usage
 Once the configuration file is created as described in the previous section, you can start the service with the following command:

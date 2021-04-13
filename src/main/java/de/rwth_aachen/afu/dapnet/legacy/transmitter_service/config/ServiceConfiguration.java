@@ -43,7 +43,7 @@ public class ServiceConfiguration extends Configuration {
 		amqpHost = reader.getString("amqp.host").orElseThrow();
 		amqpUser = reader.getString("amqp.user").orElseThrow();
 		amqpPassword = reader.getString("amqp.password").orElseThrow();
-		amqpExchangeName = reader.getString("amqp.exchange").orElseThrow();
+		amqpExchangeName = reader.getString("amqp.exchange").orElse("dapnet.local_calls");
 
 		// Service URLs
 		bootstrapUrl = reader.getString("services.bootstrap").orElseThrow();
